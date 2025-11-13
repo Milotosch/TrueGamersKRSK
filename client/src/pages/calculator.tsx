@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Calendar, Gamepad2, Trophy, Zap, Moon, Info } from "lucide-react";
+import { Clock, Calendar, Gamepad2, Trophy, Zap, Moon, Info, AlertCircle } from "lucide-react";
 import { 
   NORMAL_ZONE_TARIFFS, 
   isWeekend, 
@@ -12,16 +12,22 @@ import {
   type Tariff 
 } from "@shared/schema";
 
+type Zone = "normal" | "vip" | "premium";
+
 export default function Calculator() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [hours, setHours] = useState<string>("");
   const [minutes, setMinutes] = useState<string>("");
+  const [selectedZone, setSelectedZone] = useState<Zone>("normal");
   const isWeekendDay = isWeekend(currentTime);
   const currentHour = currentTime.getHours();
   
   const totalMinutes = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
   
-  const spansInfo = spansBothWeekdayAndWeekend(currentTime, totalMinutes);
+  const spansInfo = useMemo(() => 
+    spansBothWeekdayAndWeekend(currentTime, totalMinutes),
+    [currentTime, totalMinutes]
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -60,21 +66,19 @@ export default function Calculator() {
     });
   };
 
-  const optimalCombination = totalMinutes > 0 
-    ? findOptimalCombination(totalMinutes, currentHour, isWeekendDay)
-    : null;
+  const optimalCombination = useMemo(() => 
+    totalMinutes > 0 && totalMinutes <= 3600
+      ? findOptimalCombination(totalMinutes, currentHour, isWeekendDay, currentTime)
+      : null,
+    [totalMinutes, currentHour, isWeekendDay, currentTime]
+  );
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
-              <Gamepad2 className="w-6 h-6 text-primary" />
-            </div>
-            <h1 className="text-xl lg:text-2xl font-bold" data-testid="text-title">
-              PC Club Calculator
-            </h1>
+            <img src="/logo.svg" alt="Logo" className="w-10 h-10" />
           </div>
           
           <div className="flex items-center gap-4">
@@ -108,42 +112,85 @@ export default function Calculator() {
 
         <Card className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
           <div>
-            <h2 className="text-2xl font-semibold mb-2">Зона Normal</h2>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <p className="text-sm text-muted-foreground">Выберите зону</p>
+                <Badge variant="outline" className="text-xs">В разработке</Badge>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setSelectedZone("normal")}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    selectedZone === "normal"
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                  }`}
+                >
+                  Normal
+                </button>
+                <button
+                  disabled
+                  className="px-4 py-2 rounded-md text-sm font-medium bg-muted/50 text-muted-foreground/50 cursor-not-allowed"
+                >
+                  VIP
+                </button>
+                <button
+                  disabled
+                  className="px-4 py-2 rounded-md text-sm font-medium bg-muted/50 text-muted-foreground/50 cursor-not-allowed"
+                >
+                  Premium
+                </button>
+              </div>
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">
+              Зона {selectedZone === "normal" ? "Normal" : selectedZone === "vip" ? "VIP" : "Premium"}
+            </h2>
             <p className="text-sm text-muted-foreground">
               Укажите время и узнайте оптимальные варианты
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Часы
-              </label>
-              <Input
-                type="number"
-                min="0"
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                placeholder="0"
-                className="text-lg font-mono"
-                data-testid="input-hours"
-              />
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Часы
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value)}
+                  placeholder="0"
+                  className="text-lg font-mono"
+                  data-testid="input-hours"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Минуты
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={minutes}
+                  onChange={(e) => setMinutes(e.target.value)}
+                  placeholder="0"
+                  className="text-lg font-mono"
+                  data-testid="input-minutes"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Минуты
-              </label>
-              <Input
-                type="number"
-                min="0"
-                max="59"
-                value={minutes}
-                onChange={(e) => setMinutes(e.target.value)}
-                placeholder="0"
-                className="text-lg font-mono"
-                data-testid="input-minutes"
-              />
-            </div>
+            {totalMinutes > 3600 && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/10 rounded-md border border-destructive/20">
+                <Info className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-destructive">
+                  Максимальное время для расчета: 60 часов (3600 минут)
+                </p>
+              </div>
+            )}
           </div>
 
           {optimalCombination && (
@@ -207,6 +254,28 @@ export default function Calculator() {
               const isAvailable = isTariffAvailable(tariff, currentHour);
               const weekdayPrice = tariff.priceWeekday;
               const weekendPrice = tariff.priceWeekend;
+              
+              const endTime = new Date(currentTime.getTime() + totalMinutes * 60000);
+              
+              let sessionReachesCyberNightWindow = false;
+              if (totalMinutes > 0) {
+                const currentHourValue = currentTime.getHours();
+                
+                if (currentHourValue >= 22 || currentHourValue < 3) {
+                  sessionReachesCyberNightWindow = true;
+                } else {
+                  const next22Today = new Date(currentTime);
+                  next22Today.setHours(22, 0, 0, 0);
+                  
+                  if (endTime >= next22Today) {
+                    sessionReachesCyberNightWindow = true;
+                  }
+                }
+              }
+              
+              const doesNotReachAvailableTime = tariff.id === "cyber-night" && 
+                totalMinutes > 0 && 
+                !sessionReachesCyberNightWindow;
 
               return (
                 <Card
@@ -231,6 +300,11 @@ export default function Calculator() {
                           </p>
                         </div>
                       </div>
+                      {doesNotReachAvailableTime && (
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-destructive/20">
+                          <AlertCircle className="w-5 h-5 text-destructive" />
+                        </div>
+                      )}
                     </div>
 
                     {tariff.description && !tariff.perMinute && (
@@ -239,10 +313,19 @@ export default function Calculator() {
                       </p>
                     )}
 
-                    {!isAvailable && (
+                    {!isAvailable && !doesNotReachAvailableTime && (
                       <Badge variant="destructive" className="text-xs">
                         Доступно с {tariff.availableFrom}:00 до {tariff.availableTo}:00
                       </Badge>
+                    )}
+                    
+                    {doesNotReachAvailableTime && (
+                      <div className="flex items-start gap-2 p-2 bg-destructive/10 rounded-md border border-destructive/20">
+                        <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-destructive">
+                          Выбранное время не достигает 22:00
+                        </p>
+                      </div>
                     )}
 
                     <div className="flex items-center gap-4">

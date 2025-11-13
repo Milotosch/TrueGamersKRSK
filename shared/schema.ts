@@ -63,6 +63,36 @@ export function isWeekend(date: Date): boolean {
   return day === 5 || day === 6 || day === 0;
 }
 
+export function calculateMinutesInWeekdayAndWeekend(
+  startDate: Date,
+  durationMinutes: number
+): { weekdayMinutes: number; weekendMinutes: number } {
+  if (durationMinutes <= 0) {
+    return { weekdayMinutes: 0, weekendMinutes: 0 };
+  }
+
+  let weekdayMinutes = 0;
+  let weekendMinutes = 0;
+  
+  const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+  let currentDate = new Date(startDate.getTime());
+  
+  while (currentDate < endDate) {
+    const nextMinute = new Date(currentDate.getTime() + 60000);
+    const minuteToAdd = nextMinute <= endDate ? 1 : (endDate.getTime() - currentDate.getTime()) / 60000;
+    
+    if (isWeekend(currentDate)) {
+      weekendMinutes += minuteToAdd;
+    } else {
+      weekdayMinutes += minuteToAdd;
+    }
+    
+    currentDate = nextMinute;
+  }
+  
+  return { weekdayMinutes, weekendMinutes };
+}
+
 export function spansBothWeekdayAndWeekend(
   startDate: Date,
   durationMinutes: number
@@ -123,9 +153,28 @@ export function isTariffAvailable(tariff: Tariff, currentHour: number): boolean 
 export function calculatePrice(
   tariff: Tariff,
   minutes: number,
-  isWeekendDay: boolean
-): { price: number; originalPrice: number; rounded: boolean } {
+  isWeekendDay: boolean,
+  startDate?: Date
+): { price: number; originalPrice: number; rounded: boolean; weekdayMinutes?: number; weekendMinutes?: number } {
   const basePrice = isWeekendDay ? tariff.priceWeekend : tariff.priceWeekday;
+  
+  if (tariff.perMinute && startDate) {
+    const { weekdayMinutes, weekendMinutes } = calculateMinutesInWeekdayAndWeekend(startDate, minutes);
+    
+    if (weekdayMinutes > 0 && weekendMinutes > 0) {
+      const weekdayPricePerMinute = tariff.priceWeekday / 60;
+      const weekendPricePerMinute = tariff.priceWeekend / 60;
+      const exactPrice = (weekdayPricePerMinute * weekdayMinutes) + (weekendPricePerMinute * weekendMinutes);
+      const roundedPrice = Math.ceil(exactPrice);
+      return {
+        price: roundedPrice,
+        originalPrice: exactPrice,
+        rounded: exactPrice !== roundedPrice,
+        weekdayMinutes,
+        weekendMinutes,
+      };
+    }
+  }
   
   if (tariff.perMinute) {
     const pricePerMinute = basePrice / 60;
@@ -164,7 +213,8 @@ export interface TariffCombination {
 export function findOptimalCombination(
   requestedMinutes: number,
   currentHour: number,
-  isWeekendDay: boolean
+  isWeekendDay: boolean,
+  startDate?: Date
 ): TariffCombination | null {
   if (requestedMinutes <= 0) return null;
 
@@ -193,7 +243,7 @@ export function findOptimalCombination(
   };
 
   if (perMinuteTariff) {
-    const exactResult = calculatePrice(perMinuteTariff, requestedMinutes, isWeekendDay);
+    const exactResult = calculatePrice(perMinuteTariff, requestedMinutes, isWeekendDay, startDate);
     const hours = Math.floor(requestedMinutes / 60);
     const mins = requestedMinutes % 60;
     const timeLabel = hours > 0 
@@ -247,6 +297,29 @@ export function findOptimalCombination(
         
         if (newRemaining <= 0) {
           const combo = evaluateCombination([...currentSegments, newSegment]);
+          if (combo.totalPrice < bestPrice) {
+            bestPrice = combo.totalPrice;
+            bestCombination = combo;
+          }
+        } else if (perMinuteTariff && startDate) {
+          const consumedMinutes = currentSegments.reduce((sum, seg) => sum + seg.minutes, 0) + totalMinutes;
+          const perMinStartDate = new Date(startDate.getTime() + consumedMinutes * 60000);
+          const perMinResult = calculatePrice(perMinuteTariff, newRemaining, isWeekendDay, perMinStartDate);
+          const hours = Math.floor(newRemaining / 60);
+          const mins = newRemaining % 60;
+          const timeLabel = hours > 0 
+            ? `${hours}ч ${mins > 0 ? mins + 'мин' : ''}`.trim()
+            : `${mins}мин`;
+          
+          const perMinSegment: TariffSegment = {
+            tariff: perMinuteTariff,
+            quantity: 1,
+            minutes: newRemaining,
+            price: perMinResult.price,
+            label: timeLabel,
+          };
+          
+          const combo = evaluateCombination([...currentSegments, newSegment, perMinSegment]);
           if (combo.totalPrice < bestPrice) {
             bestPrice = combo.totalPrice;
             bestCombination = combo;
