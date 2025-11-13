@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Calendar, Gamepad2, Trophy, Zap, Moon, Info, AlertCircle } from "lucide-react";
+import { Clock, Calendar, Gamepad2, Trophy, Zap, Moon, Info, AlertCircle, Heart } from "lucide-react";
 import { 
   NORMAL_ZONE_TARIFFS, 
   isWeekend, 
@@ -439,7 +439,7 @@ export default function Calculator() {
 
       <footer className="border-t border-border/40 bg-card/30 backdrop-blur-sm mt-12">
         <div className="max-w-4xl mx-auto px-4 lg:px-8 py-6">
-          <p className="text-xs text-center text-muted-foreground">
+          <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1.5">
             Сделано с душой{" "}
             <a 
               href="https://t.me/amorolive" 
@@ -451,6 +451,7 @@ export default function Calculator() {
               @amorolive
             </a>
             {" "}для сети компьютерных клубов «True Gamers» в г. Красноярск
+            <Heart className="w-3.5 h-3.5 text-primary fill-primary/20" />
           </p>
         </div>
       </footer>
