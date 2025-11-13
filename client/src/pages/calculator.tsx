@@ -1,1 +1,296 @@
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Clock, Calendar, Gamepad2, Trophy, Zap, Moon, Info } from "lucide-react";
+import { 
+  NORMAL_ZONE_TARIFFS, 
+  isWeekend, 
+  isTariffAvailable,
+  findOptimalCombination,
+  spansBothWeekdayAndWeekend,
+  type Tariff 
+} from "@shared/schema";
 
+export default function Calculator() {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [hours, setHours] = useState<string>("");
+  const [minutes, setMinutes] = useState<string>("");
+  const isWeekendDay = isWeekend(currentTime);
+  const currentHour = currentTime.getHours();
+  
+  const totalMinutes = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
+  
+  const spansInfo = spansBothWeekdayAndWeekend(currentTime, totalMinutes);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getTariffIcon = (tariffId: string) => {
+    switch (tariffId) {
+      case "cyber-hour":
+        return <Clock className="w-5 h-5" />;
+      case "triple-kill":
+        return <Gamepad2 className="w-5 h-5" />;
+      case "ultra-kill":
+        return <Trophy className="w-5 h-5" />;
+      case "cyber-night":
+        return <Moon className="w-5 h-5" />;
+      default:
+        return <Zap className="w-5 h-5" />;
+    }
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("ru-RU", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+  };
+
+  const optimalCombination = totalMinutes > 0 
+    ? findOptimalCombination(totalMinutes, currentHour, isWeekendDay)
+    : null;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-4 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
+              <Gamepad2 className="w-6 h-6 text-primary" />
+            </div>
+            <h1 className="text-xl lg:text-2xl font-bold" data-testid="text-title">
+              PC Club Calculator
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <Badge 
+                variant={isWeekendDay ? "default" : "secondary"}
+                className="font-medium"
+                data-testid="badge-day-type"
+              >
+                {isWeekendDay ? "Выходные" : "Будни"}
+              </Badge>
+            </div>
+            <div 
+              className="flex items-center gap-2 font-mono text-lg font-semibold"
+              data-testid="text-current-time"
+            >
+              <Clock className="w-4 h-4 text-primary" />
+              {formatTime(currentTime)}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 lg:px-8 py-6 lg:py-12">
+        <div className="mb-4 lg:mb-6">
+          <p className="text-sm text-muted-foreground" data-testid="text-current-date">
+            {formatDate(currentTime)}
+          </p>
+        </div>
+
+        <Card className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
+          <div>
+            <h2 className="text-2xl font-semibold mb-2">Зона Normal</h2>
+            <p className="text-sm text-muted-foreground">
+              Укажите время и узнайте оптимальные варианты
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Часы
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={hours}
+                onChange={(e) => setHours(e.target.value)}
+                placeholder="0"
+                className="text-lg font-mono"
+                data-testid="input-hours"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Минуты
+              </label>
+              <Input
+                type="number"
+                min="0"
+                max="59"
+                value={minutes}
+                onChange={(e) => setMinutes(e.target.value)}
+                placeholder="0"
+                className="text-lg font-mono"
+                data-testid="input-minutes"
+              />
+            </div>
+          </div>
+
+          {optimalCombination && (
+            <div className="space-y-4">
+              <div className="bg-accent/50 rounded-md p-4 sm:p-6 space-y-4 border border-primary/20 shadow-[0_0_20px_rgba(0,191,255,0.1)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      Оптимальная стоимость
+                    </p>
+                    <p 
+                      className="font-mono text-3xl lg:text-4xl font-bold text-primary drop-shadow-[0_0_12px_rgba(0,191,255,0.6)]"
+                      data-testid="text-calculated-price"
+                    >
+                      {optimalCombination.totalPrice} ₽
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="h-fit">
+                    {totalMinutes < 60 
+                      ? `${totalMinutes} мин` 
+                      : `${Math.floor(totalMinutes / 60)}ч ${totalMinutes % 60 > 0 ? totalMinutes % 60 + 'м' : ''}`}
+                  </Badge>
+                </div>
+
+                <div className="space-y-2">
+                  {optimalCombination.segments.map((segment, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-background/50 rounded-md border border-border/50"
+                      data-testid={`segment-${index}`}
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">
+                          {segment.quantity > 1 ? `(${segment.quantity}x) ` : ''}
+                          {segment.tariff.nameRu}
+                          {segment.quantity === 1 && !segment.tariff.perMinute ? ` - ${segment.label}` : ''}
+                          {segment.tariff.perMinute ? ` - ${segment.label}` : ''}
+                        </p>
+                      </div>
+                      <p className="font-mono font-semibold text-lg ml-4">
+                        {segment.price} ₽
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {optimalCombination.wastedMinutes > 0 && (
+                  <div className="flex items-start gap-2 p-3 bg-muted/30 rounded-md">
+                    <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      Включает {optimalCombination.wastedMinutes} мин сверх запрошенного времени
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+            {NORMAL_ZONE_TARIFFS.map((tariff) => {
+              const isAvailable = isTariffAvailable(tariff, currentHour);
+              const weekdayPrice = tariff.priceWeekday;
+              const weekendPrice = tariff.priceWeekend;
+
+              return (
+                <Card
+                  key={tariff.id}
+                  className={`p-4 sm:p-6 transition-all hover-elevate ${
+                    !isAvailable ? "opacity-50" : ""
+                  }`}
+                  data-testid={`card-tariff-${tariff.id}`}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-md flex items-center justify-center bg-accent text-accent-foreground">
+                          {getTariffIcon(tariff.id)}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold">{tariff.nameRu}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {tariff.perMinute
+                              ? tariff.description
+                              : `${Math.floor(tariff.duration / 60)}ч`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {tariff.description && !tariff.perMinute && (
+                      <p className="text-xs text-muted-foreground">
+                        {tariff.description}
+                      </p>
+                    )}
+
+                    {!isAvailable && (
+                      <Badge variant="destructive" className="text-xs">
+                        Доступно с {tariff.availableFrom}:00 до {tariff.availableTo}:00
+                      </Badge>
+                    )}
+
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-1">Будни</p>
+                        <p className={`font-mono text-xl font-semibold transition-all ${
+                          totalMinutes > 0 && !spansInfo.spansWeekdayAndWeekend && spansInfo.currentIsWeekend
+                            ? "line-through opacity-50"
+                            : totalMinutes > 0 && (spansInfo.spansWeekdayAndWeekend || !spansInfo.currentIsWeekend)
+                            ? !spansInfo.currentIsWeekend
+                              ? "text-primary drop-shadow-[0_0_8px_rgba(0,191,255,0.5)]"
+                              : ""
+                            : ""
+                        }`}>
+                          {weekdayPrice} ₽
+                        </p>
+                      </div>
+                      <div className="w-px h-10 bg-border" />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-1">Выходные</p>
+                        <p className={`font-mono text-xl font-semibold transition-all ${
+                          totalMinutes > 0 && !spansInfo.spansWeekdayAndWeekend && !spansInfo.currentIsWeekend
+                            ? "line-through opacity-50"
+                            : totalMinutes > 0 && (spansInfo.spansWeekdayAndWeekend || spansInfo.currentIsWeekend)
+                            ? spansInfo.currentIsWeekend
+                              ? "text-primary drop-shadow-[0_0_8px_rgba(0,191,255,0.5)]"
+                              : ""
+                            : ""
+                        }`}>
+                          {weekendPrice} ₽
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          {!optimalCombination && totalMinutes === 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                Введите время для расчета стоимости
+              </p>
+            </div>
+          )}
+        </Card>
+      </main>
+    </div>
+  );
+}
