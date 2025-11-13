@@ -436,6 +436,24 @@ export default function Calculator() {
           )}
         </Card>
       </main>
+
+      <footer className="border-t border-border/40 bg-card/30 backdrop-blur-sm mt-12">
+        <div className="max-w-4xl mx-auto px-4 lg:px-8 py-6">
+          <p className="text-xs text-center text-muted-foreground">
+            Сделано с душой{" "}
+            <a 
+              href="https://t.me/amorolive" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover-elevate inline-block px-1 rounded transition-colors"
+              data-testid="link-developer"
+            >
+              @amorolive
+            </a>
+            {" "}для сети компьютерных клубов «True Gamers» в г. Красноярск
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
