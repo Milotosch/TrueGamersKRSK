@@ -19,14 +19,26 @@ export default function Calculator() {
   const [hours, setHours] = useState<string>("");
   const [minutes, setMinutes] = useState<string>("");
   const [selectedZone, setSelectedZone] = useState<Zone>("normal");
-  const isWeekendDay = isWeekend(currentTime);
-  const currentHour = currentTime.getHours();
+  const [devMode, setDevMode] = useState(false);
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const [devTime, setDevTime] = useState<string>("");
+  const [devDate, setDevDate] = useState<string>("");
+  const [forceWeekend, setForceWeekend] = useState<boolean | null>(null);
+  
+  const effectiveTime = devMode && devTime && devDate 
+    ? new Date(`${devDate}T${devTime}`)
+    : currentTime;
+  
+  const isWeekendDay = forceWeekend !== null 
+    ? forceWeekend 
+    : isWeekend(effectiveTime);
+  const currentHour = effectiveTime.getHours();
   
   const totalMinutes = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
   
   const spansInfo = useMemo(() => 
-    spansBothWeekdayAndWeekend(currentTime, totalMinutes),
-    [currentTime, totalMinutes]
+    spansBothWeekdayAndWeekend(effectiveTime, totalMinutes),
+    [effectiveTime, totalMinutes]
   );
 
   useEffect(() => {
@@ -35,6 +47,22 @@ export default function Calculator() {
     }, 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (logoClickCount >= 5) {
+      setDevMode(true);
+      const now = new Date();
+      setDevDate(now.toISOString().split('T')[0]);
+      setDevTime(now.toTimeString().slice(0, 5));
+      setLogoClickCount(0);
+    }
+    const timer = setTimeout(() => setLogoClickCount(0), 2000);
+    return () => clearTimeout(timer);
+  }, [logoClickCount]);
+
+  const handleLogoClick = () => {
+    setLogoClickCount(prev => prev + 1);
+  };
 
   const getTariffIcon = (tariffId: string) => {
     switch (tariffId) {
@@ -68,9 +96,9 @@ export default function Calculator() {
 
   const optimalCombination = useMemo(() => 
     totalMinutes > 0 && totalMinutes <= 3600
-      ? findOptimalCombination(totalMinutes, currentHour, isWeekendDay, currentTime)
+      ? findOptimalCombination(totalMinutes, currentHour, isWeekendDay, effectiveTime)
       : null,
-    [totalMinutes, currentHour, isWeekendDay, currentTime]
+    [totalMinutes, currentHour, isWeekendDay, effectiveTime]
   );
 
   return (
@@ -78,7 +106,13 @@ export default function Calculator() {
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 lg:px-8 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Logo" className="w-16 h-16" />
+            <img 
+              src="/logo.svg" 
+              alt="Logo" 
+              className="w-16 h-16" 
+              onClick={handleLogoClick}
+              style={{ cursor: 'pointer' }}
+            />
           </div>
           
           <div className="flex items-center gap-4">
@@ -97,16 +131,74 @@ export default function Calculator() {
               data-testid="text-current-time"
             >
               <Clock className="w-4 h-4 text-primary" />
-              {formatTime(currentTime)}
+              {formatTime(effectiveTime)}
             </div>
           </div>
         </div>
       </header>
 
+      {devMode && (
+        <div className="bg-destructive/20 border-b border-destructive/40 sticky top-[73px] z-40">
+          <div className="max-w-4xl mx-auto px-4 lg:px-8 py-3">
+            <div className="flex items-center gap-4 flex-wrap">
+              <Badge variant="destructive" className="font-semibold">
+                Режим разработчика
+              </Badge>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-foreground">Дата:</label>
+                <input
+                  type="date"
+                  value={devDate}
+                  onChange={(e) => setDevDate(e.target.value)}
+                  className="px-2 py-1 rounded text-xs bg-background border border-border"
+                  data-testid="input-dev-date"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-foreground">Время:</label>
+                <input
+                  type="time"
+                  value={devTime}
+                  onChange={(e) => setDevTime(e.target.value)}
+                  className="px-2 py-1 rounded text-xs bg-background border border-border"
+                  data-testid="input-dev-time"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-foreground">Тип дня:</label>
+                <select
+                  value={forceWeekend === null ? "auto" : forceWeekend ? "weekend" : "weekday"}
+                  onChange={(e) => {
+                    if (e.target.value === "auto") setForceWeekend(null);
+                    else setForceWeekend(e.target.value === "weekend");
+                  }}
+                  className="px-2 py-1 rounded text-xs bg-background border border-border"
+                  data-testid="select-dev-day-type"
+                >
+                  <option value="auto">Авто</option>
+                  <option value="weekday">Будни</option>
+                  <option value="weekend">Выходные</option>
+                </select>
+              </div>
+              <button
+                onClick={() => {
+                  setDevMode(false);
+                  setForceWeekend(null);
+                }}
+                className="px-3 py-1 rounded text-xs bg-destructive text-destructive-foreground hover-elevate"
+                data-testid="button-close-dev-mode"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-4xl mx-auto px-4 lg:px-8 py-6 lg:py-12">
         <div className="mb-4 lg:mb-6">
           <p className="text-sm text-muted-foreground" data-testid="text-current-date">
-            {formatDate(currentTime)}
+            {formatDate(effectiveTime)}
           </p>
         </div>
 
@@ -261,16 +353,16 @@ export default function Calculator() {
               const weekdayPrice = tariff.priceWeekday;
               const weekendPrice = tariff.priceWeekend;
               
-              const endTime = new Date(currentTime.getTime() + totalMinutes * 60000);
+              const endTime = new Date(effectiveTime.getTime() + totalMinutes * 60000);
               
               let sessionReachesCyberNightWindow = false;
               if (totalMinutes > 0) {
-                const currentHourValue = currentTime.getHours();
+                const currentHourValue = effectiveTime.getHours();
                 
                 if (currentHourValue >= 22 || currentHourValue < 3) {
                   sessionReachesCyberNightWindow = true;
                 } else {
-                  const next22Today = new Date(currentTime);
+                  const next22Today = new Date(effectiveTime);
                   next22Today.setHours(22, 0, 0, 0);
                   
                   if (endTime >= next22Today) {
@@ -302,7 +394,9 @@ export default function Calculator() {
                           <p className="text-sm text-muted-foreground">
                             {tariff.perMinute
                               ? tariff.description
-                              : `${Math.floor(tariff.duration / 60)}ч`}
+                              : tariff.description 
+                                ? "" 
+                                : `${Math.floor(tariff.duration / 60)}ч`}
                           </p>
                         </div>
                       </div>

@@ -29,7 +29,7 @@ export const NORMAL_ZONE_TARIFFS: Tariff[] = [
   {
     id: "triple-kill",
     name: "Triple Kill",
-    nameRu: "Трипл Килл",
+    nameRu: "Трипл килл",
     duration: 180,
     priceWeekday: 349,
     priceWeekend: 399,
@@ -38,7 +38,7 @@ export const NORMAL_ZONE_TARIFFS: Tariff[] = [
   {
     id: "ultra-kill",
     name: "Ultra Kill",
-    nameRu: "Ультра Килл",
+    nameRu: "Ультра килл",
     duration: 300,
     priceWeekday: 559,
     priceWeekend: 639,
@@ -49,7 +49,7 @@ export const NORMAL_ZONE_TARIFFS: Tariff[] = [
     name: "Cyber Night",
     nameRu: "Кибер ночь",
     duration: 600,
-    description: "10ч, с 22:00 до 8:00",
+    description: "с 22:00 до 8:00",
     priceWeekday: 699,
     priceWeekend: 799,
     availableFrom: 22,
@@ -218,9 +218,34 @@ export function findOptimalCombination(
 ): TariffCombination | null {
   if (requestedMinutes <= 0) return null;
 
-  const availableTariffs = NORMAL_ZONE_TARIFFS.filter(t => 
-    isTariffAvailable(t, currentHour)
-  );
+  const availableTariffs = NORMAL_ZONE_TARIFFS.filter(t => {
+    if (!isTariffAvailable(t, currentHour)) {
+      return false;
+    }
+    
+    if (t.id === "cyber-night" && startDate && requestedMinutes > 0) {
+      const endTime = new Date(startDate.getTime() + requestedMinutes * 60000);
+      const currentHourValue = startDate.getHours();
+      
+      let sessionReachesCyberNightWindow = false;
+      if (currentHourValue >= 22 || currentHourValue < 3) {
+        sessionReachesCyberNightWindow = true;
+      } else {
+        const next22Today = new Date(startDate);
+        next22Today.setHours(22, 0, 0, 0);
+        
+        if (endTime >= next22Today) {
+          sessionReachesCyberNightWindow = true;
+        }
+      }
+      
+      if (!sessionReachesCyberNightWindow) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
 
   if (availableTariffs.length === 0) return null;
 
