@@ -1,7 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import path from "path"; // Добавляем этот импорт
 
 const app = express();
 
@@ -64,13 +63,7 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    // В продакшене на Render - раздаем статику из правильной папки
-    app.use(express.static(path.join(process.cwd(), "dist")));
-    
-    // Для SPA - все маршруты ведем на index.html
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(process.cwd(), "dist", "index.html"));
-    });
+    serveStatic(app);
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
